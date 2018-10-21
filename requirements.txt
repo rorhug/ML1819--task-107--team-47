@@ -1,3 +1,6 @@
 python-twitter>=3.4.2
 tensorflow>=1.11.0
 python-dotenv>=0.9.1
+matplotlib
+numpy
+Unidecode
