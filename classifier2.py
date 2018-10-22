@@ -70,26 +70,23 @@ partial_x_train = train_features[1500:]
 y_val = train_labels[:1500]
 partial_y_train = train_labels[1500:]
 
-
-
 vocab_size = 128
 
 model = keras.Sequential()
 model.add(keras.layers.Embedding(vocab_size, 32))
 model.add(keras.layers.GlobalAveragePooling1D())
 model.add(keras.layers.Dense(32, activation=tf.nn.relu))
-model.add(keras.layers.Dense(3, activation=tf.nn.softmax))
+model.add(keras.layers.Dense(2, activation=tf.nn.softmax))
 model.summary()
 
-
-model.compile(optimizer=tf.train.AdamOptimizer(learning_rate=0.005),
+model.compile(optimizer=tf.train.AdamOptimizer(learning_rate=0.05),
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 
 history = model.fit(
     partial_x_train,
     partial_y_train,
-    epochs=40,
+    epochs=100,
     batch_size=512,
     validation_data=(x_val, y_val),
     verbose=1
