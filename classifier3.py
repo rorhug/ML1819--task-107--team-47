@@ -36,7 +36,7 @@ def generate_feature(user):
     for name in names:
         norm_name = normalize_name(name)
         #feats.append(len(name))
-        for i in range(6):
+        for i in range(10):
             if len(name) > i:
                 # add ordinal of nth letter
                 feats.append(norm_name[i])
@@ -45,6 +45,17 @@ def generate_feature(user):
             else:
                 feats.append(0) # one for nth letter
                 feats.append(0) # another for nth last letter
+
+    # insert rgb of each customizable color of profile
+    colornames = ["profile_background_color", "profile_link_color", "profile_sidebar_border_color", "profile_sidebar_fill_color", "profile_text_color"]
+
+    for colorname in colornames:
+        color = profile[colorname]
+        channels = [color[0:2], color[2:4], color[4:6]]
+        for channel in channels:
+            value = int(channel, 16) / 255.0 # 0-1 rgb value of channel
+            feats.append(value)
+
     return feats
 
 def has_required_fields(user):
@@ -81,19 +92,14 @@ model = keras.Sequential()
 model.add(keras.layers.InputLayer(input_shape = Features.shape[1:]))
 model.add(keras.layers.Dense(Features.shape[1] // 1, activation='relu', kernel_initializer='random_uniform', bias_initializer='random_uniform'))
 model.add(keras.layers.Dropout(0.3))
-model.add(keras.layers.Dense(Features.shape[1] // 3, activation='tanh', kernel_initializer='random_uniform', bias_initializer='random_uniform'))
-model.add(keras.layers.Dropout(0.3))
 model.add(keras.layers.Dense(TESTING_GENDS, activation='softmax'))
 model.summary()
 
 model.compile(
-    optimizer=tf.train.AdamOptimizer(learning_rate=0.05),
+    optimizer=tf.train.AdamOptimizer(learning_rate=0.005),
     loss='sparse_categorical_crossentropy',
     metrics=['accuracy']
 )
-
-
-
 
 history = model.fit(
     TrainFeats,
