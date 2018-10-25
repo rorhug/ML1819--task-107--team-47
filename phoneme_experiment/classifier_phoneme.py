@@ -3,7 +3,7 @@ import numpy as np
 import json, unidecode
 from tensorflow import keras
 
-TESTING_GENDS = 2
+TESTING_GENDS = 4
 GENDER_MAP = {
     "male": 0,
     "female": 1,

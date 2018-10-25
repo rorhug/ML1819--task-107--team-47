@@ -5,7 +5,7 @@ import unidecode
 from tensorflow import keras
 from random import shuffle
 
-TESTING_GENDS = 2
+TESTING_GENDS = 4
 GENDER_MAP = {
     "male": 0,
     "female": 1,

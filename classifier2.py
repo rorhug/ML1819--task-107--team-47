@@ -16,6 +16,8 @@ GENDER_MAP = {
     "unknown": 3
 }
 
+HOW_MANY_GENDERS = 2
+
 def make_features(user):
     profile = user["twitter_profile"]
     first_name = unidecode.unidecode(profile["name"].split(" ")[0]).lower()
@@ -37,7 +39,7 @@ for screen_name, user in data.items():
     user_features = make_features(user)
     user_label = GENDER_MAP[user["gender"]]
 
-    if user_label < 2 and all_features_present(user_features):
+    if user_label < HOW_MANY_GENDERS and all_features_present(user_features):
         features.append(user_features)
         labels.append(user_label)
 
@@ -76,7 +78,7 @@ model = keras.Sequential()
 model.add(keras.layers.Embedding(vocab_size, 32))
 model.add(keras.layers.GlobalAveragePooling1D())
 model.add(keras.layers.Dense(32, activation=tf.nn.relu))
-model.add(keras.layers.Dense(2, activation=tf.nn.softmax))
+model.add(keras.layers.Dense(HOW_MANY_GENDERS, activation=tf.nn.softmax))
 model.summary()
 
 model.compile(optimizer=tf.train.AdamOptimizer(learning_rate=0.05),
