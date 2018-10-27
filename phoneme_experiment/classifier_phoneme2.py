@@ -8,7 +8,10 @@ GENDER_MAP = {
     "male": 0,
     "female": 1,
     "brand": 2,
-    "unknown": 3
+    "unknown": 3,
+    "mostly_male": 4,
+    "mostly_female": 5,
+    "andy": 6
 }
 
 
@@ -106,7 +109,7 @@ model.compile(
 history = model.fit(
     [TrainNames, TrainNicks, TrainDescTokens, TrainFeats],
     [TrainLabels],
-    epochs=75,
+    epochs=100,
     batch_size=2048,
     validation_data=([ValidNames, ValidNicks, ValidDescTokens, ValidFeats], [ValidLabels]),
     #verbose=1
