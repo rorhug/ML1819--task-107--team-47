@@ -1,9 +1,13 @@
+import os
 import tensorflow as tf
 import numpy as np
 import json
 import unidecode
 from tensorflow import keras
 from random import shuffle
+import colorsys
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
 MALE = "male"
 FEMALE = "female"
@@ -11,6 +15,8 @@ GENDERMAP = {
 	MALE: 0,
 	FEMALE: 1
 }
+
+file_writer = tf.summary.FileWriter('/path/to/logs', sess.graph)
 
 # given a dataset, return a filtered dataset which removes undesirables
 # also sets male + female to same amount
@@ -30,7 +36,7 @@ def prune(dataset):
 	numeach = min(len(males), len(females))
 	print(f"Pruned dataset down to {numeach} males and {numeach} females.")
 	prunset = {}
-	for i in range(int(numeach * 0.1)):
+	for i in range(int(numeach * 0.5)):
 		prunset[males[i][0]] = males[i][1]
 		prunset[females[i][0]] = females[i][1]
 	return prunset
@@ -39,7 +45,7 @@ def prune(dataset):
 # transform name string into 20 numbers (first 10 and last 10 character ordinals) and add
 def addname(features, name):
 	count = 0
-	for i in range(5):
+	for i in range(3):
 		count += 2
 		if len(name) > i:
 			features.append(ord(name[i]))
@@ -52,11 +58,13 @@ def addname(features, name):
 # transform colour hexstring into R, G and B and add it
 def addcolor(features, hexstring):
 	channels = [hexstring[0:2], hexstring[2:4], hexstring[4:6]]
+	rgb = []
 	count = 0
 	for channel in channels:
-		value = int(channel, 16)
+		rgb.append(int(channel, 16) / 255)
 		count += 1
-		features.append(value)
+
+	features += colorsys.rgb_to_hsv(*rgb)
 	return count
 
 # given a dataset, return a feature set
@@ -144,6 +152,8 @@ def holdout(featxy):
 
 # run a tensorflow model on given sets and return accuracy
 def evaluate(trainxy, validxy, testxy):
+	keras.backend.clear_session()
+
 	model = keras.Sequential()
 	features = np.array(trainxy[0])
 	model.add(keras.layers.InputLayer(input_shape = features.shape[1:]))
@@ -156,8 +166,10 @@ def evaluate(trainxy, validxy, testxy):
 		metrics=['accuracy']
 	)
 
+	# tbCallBack = keras.callbacks.TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
+
 	history = model.fit(
-		trainxy[0], trainxy[1], None, 25, validation_data = validxy, verbose=1
+		trainxy[0], trainxy[1], None, 20, validation_data = validxy #, callbacks=[tbCallBack]
 	)
 
 	results = model.evaluate(testxy[0], testxy[1])
@@ -226,7 +238,7 @@ def featselect(trainxy, validxy, testxy, featid):
 		print(f"Final accuracy: {bestacc}")
 	else:
 		trainxy2, validxy2, testxy2, featid2 = featstrip(trainxy, validxy, testxy, featid, bestidx)
-		print(f"Removed feature: {bestidx}")
+		print(f"Removed feature: {featid2[bestidx]}")
 		print(f"New accuracy: {bestacc}")
 		if len(featid2) > 1:
 			featselect(trainxy2, validxy2, testxy2, featid2)
