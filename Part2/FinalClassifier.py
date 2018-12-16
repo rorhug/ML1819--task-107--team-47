@@ -16,7 +16,7 @@ GENDERMAP = {
 	FEMALE: 1
 }
 
-file_writer = tf.summary.FileWriter('/path/to/logs', sess.graph)
+# file_writer = tf.summary.FileWriter('/path/to/logs', sess.graph)
 
 # given a dataset, return a filtered dataset which removes undesirables
 # also sets male + female to same amount
@@ -74,6 +74,39 @@ def addcolor(features, hexstring):
 def featurify(dataset):
 	featset = []
 	labelset = []
+
+	colornames = [
+		"profile_background_color",
+		"profile_link_color",
+		"profile_sidebar_border_color",
+		"profile_sidebar_fill_color",
+		"profile_text_color"
+	]
+
+	feature_names = [
+		"firstname_1",
+		"firstname_-1",
+		"firstname_2",
+		"firstname_-2",
+		"firstname_3",
+		"firstname_-3",
+		"lastname_1",
+		"lastname_-1",
+		"lastname_2",
+		"lastname_-2",
+		"lastname_3",
+		"lastname_-3",
+		"screename_1",
+		"screename_-1",
+		"screename_2",
+		"screename_-2",
+		"screename_3",
+		"screename_-3",
+	]
+	for colorname in colornames:
+		feature_names += [colorname + c for c in ["h", "s", "v"]]
+	feature_names += ["followers_count", "friends_count", "favourites_count"]
+
 	for screen_name, user in dataset.items():
 		features = []
 		profile = user["twitter_profile"]
@@ -87,13 +120,6 @@ def featurify(dataset):
 		featcount += addname(features, lastname)
 		featcount += addname(features, screen_name)
 
-		colornames = [
-			"profile_background_color",
-			"profile_link_color",
-			"profile_sidebar_border_color",
-			"profile_sidebar_fill_color",
-			"profile_text_color"
-		]
 		for colorname in colornames:
 			featcount += addcolor(features, profile[colorname])
 
@@ -107,7 +133,8 @@ def featurify(dataset):
 		label = GENDERMAP[user["gender"]]
 		labelset.append(label)
 
-	return (featset, labelset), [i for i in range(featcount)]
+	# return (featset, labelset), [i for i in range(featcount)]
+	return (featset, labelset), feature_names
 
 # standardize a feature set
 def standardize(featxy):
@@ -157,8 +184,8 @@ def evaluate(trainxy, validxy, testxy):
 	model = keras.Sequential()
 	features = np.array(trainxy[0])
 	model.add(keras.layers.InputLayer(input_shape = features.shape[1:]))
-	model.add(keras.layers.Dense(features.shape[1], activation='relu', kernel_initializer='random_uniform', bias_initializer='random_uniform'))
-	model.add(keras.layers.Dropout(0.3))
+	model.add(keras.layers.Dense(features.shape[1], activation='relu'))#, kernel_initializer='random_uniform', bias_initializer='random_uniform'))
+	# model.add(keras.layers.Dropout(0.3))
 	model.add(keras.layers.Dense(2, activation='softmax'))
 	model.compile(
 		optimizer=tf.train.AdamOptimizer(learning_rate=0.002),
@@ -166,10 +193,10 @@ def evaluate(trainxy, validxy, testxy):
 		metrics=['accuracy']
 	)
 
-	# tbCallBack = keras.callbacks.TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
+	tbCallBack = keras.callbacks.TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
 
 	history = model.fit(
-		trainxy[0], trainxy[1], None, 20, validation_data = validxy #, callbacks=[tbCallBack]
+		trainxy[0], trainxy[1], None, 20, validation_data = validxy, callbacks=[tbCallBack]
 	)
 
 	results = model.evaluate(testxy[0], testxy[1])
@@ -221,27 +248,53 @@ def featstrip(trainxy, validxy, testxy, featid, n):
 	return newtrainxy, newvalidxy, newtestxy, newfeatid
 
 # repeatedly remove the worst feature. worst feature is highest acc model when feature removed
-def featselect(trainxy, validxy, testxy, featid):
+def featselect(trainxy, validxy, testxy, featid, bestacc):
 	print(f"Selecting from {len(featid)} features.")
-	bestacc = evaluate(trainxy, validxy, testxy)
+	# bestacc = evaluate(trainxy, validxy, testxy)
 	bestidx = None
+
+	accuracies = []
+
+	print(featid)
+	print(len(featid))
 
 	for i in range(len(featid)):
 		id = featid[i]
 		print(f"Evaluating removal of feature {id}")
 		trainxy2, validxy2, testxy2, featid2 = featstrip(trainxy, validxy, testxy, featid, i)
 		stripacc = evaluate(trainxy2, validxy2, testxy2)
-		if stripacc > bestacc:
-			bestidx = i
-			bestacc = stripacc
-	if bestidx == None:
-		print(f"Final accuracy: {bestacc}")
-	else:
-		trainxy2, validxy2, testxy2, featid2 = featstrip(trainxy, validxy, testxy, featid, bestidx)
-		print(f"Removed feature: {featid2[bestidx]}")
-		print(f"New accuracy: {bestacc}")
-		if len(featid2) > 1:
-			featselect(trainxy2, validxy2, testxy2, featid2)
+		accuracies.append({"acc": stripacc, "feature": featid[i], "feature_idx": i})
+		del trainxy2
+		del validxy2
+		del testxy2
+		del featid2
+		# if stripacc > bestacc or bestidx is None:
+		# 	bestidx = i
+		# 	bestacc = stripacc
+
+	print(sorted(accuracies, key=lambda d: d["acc"]))
+
+	features_to_remove = []
+	for feature in accuracies:
+		if bestacc < feature["acc"]:
+			features_to_remove.append(feature["feature_idx"])
+
+
+	newtrainxy, newvalidxy, newtestxy, newfeatid = list(trainxy), list(validxy), list(testxy), list(featid)
+	for idx in sorted(features_to_remove, reverse=True):
+		newtrainxy, newvalidxy, newtestxy, newfeatid = featstrip(newtrainxy, newvalidxy, newtestxy, newfeatid, idx)
+
+	print(evaluate(newtrainxy, newvalidxy, newtestxy))
+
+	# if bestidx == None:
+	# 	print(f"Final accuracy: {bestacc}")
+	# else:
+	# trainxy2, validxy2, testxy2, featid2 = featstrip(trainxy, validxy, testxy, featid, bestidx)
+	# print(f"Removed feature: {featid2[bestidx]}")
+	# print(f"New accuracy: {bestacc}")
+
+	# if len(featid2) > 1:
+	# 	featselect(trainxy2, validxy2, testxy2, featid2, bestacc)
 dataset = None
 with open("../users.json", "r") as datafile:
 	dataset = json.load(datafile)
@@ -259,4 +312,4 @@ print("Features extracted")
 
 trainxy, validationxy, testxy = holdout(featxy)
 
-featselect(trainxy, validationxy, testxy, featid)
+featselect(trainxy, validationxy, testxy, featid, evaluate(trainxy, validationxy, testxy))
